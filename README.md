@@ -40,44 +40,58 @@ Blogs documenting each phase: [LouStackBase](https://loustack.dev/?lang=english)
 ## Phase Highlights
 
 ### Phase 1 — Docker + Kubernetes Core
-- Multi-stage Docker build to `scratch` and `distroless` base images
-- K8s control plane vs worker node architecture; reconciliation loop
-- Deployment → ReplicaSet → Pod, rolling update with `maxSurge` / `maxUnavailable`
+- Linux namespace + cgroup; multi-stage Docker build to `scratch` and `distroless`
+- Image layer cache, container restart vs rebuild, cgroup resource limits
+- K8s architecture: Control Plane vs Worker Node, reconciliation loop
+- Deployment → ReplicaSet → Pod, rolling update (`maxSurge` / `maxUnavailable`)
 - Service DNS-based discovery, HPA with metrics-server
 - `kubectl` debug flow: `get pods → describe → logs → events`
 
 ### Phase 2 — K8s Failure Modeling
 - OOMKilled (exit code 137), CrashLoopBackOff exponential backoff, ImagePullBackOff
-- Readiness probe failure vs Liveness probe failure — different outcomes
+- Readiness probe vs Liveness probe failure — different outcomes
 - ResourceQuota enforcement at the API server layer
-- ConfigMap vs Secret injection: `envFrom` (whole map) vs `valueFrom` (single key)
+- ConfigMap vs Secret: `envFrom` (whole map) vs `valueFrom` (single key)
 - Cross-namespace DNS: `service.namespace.svc.cluster.local`
 
 ### Phase 4 — Networking + GCP Fundamentals
-- DNS resolution flow, TLS handshake, L4 vs L7 load balancer trade-offs
-- Reverse proxy pattern: every LB is a reverse proxy, not every reverse proxy does LB
-- GCP VPC (global) vs Azure VNet (regional) — key architectural difference
-- Service Account vs Azure Managed Identity — explicit identity vs credentials-free by design
-- GCP hands-on: VPC, Subnet, Firewall Rules, Service Account via Console and gcloud
+- DNS resolution flow, TLS handshake, HTTP statelessness
+- L4 vs L7 load balancer trade-offs; reverse proxy pattern
+- GCP VPC (global) vs Azure VNet (regional); Service Account vs Managed Identity
+- GCP hands-on: VPC, Subnet, Firewall Rules, Service Account
+- SD: Networking Essentials, Client-Server Architecture, Load Balancer, API Gateway
 
 ### Phase 5 — IaC + Least Privilege
-- Terraform module pattern: define once, pass different variables per environment
-- GCS remote state with native locking — CAP Theorem applied: two concurrent `apply` calls cannot both write state
-- `terraform state mv / rm / import` for refactoring without destroying resources
-- Workload Identity Federation: GitHub Actions → GCP OIDC, no Service Account key ever stored
-- `attribute_mapping` (JWT claim → GCP attribute) and `attribute_condition` (repo-scoped access)
-- Ansible: idempotency in practice — `file` and `copy` modules show `ok` on second run, `command` module always runs
+- Terraform modules, multi-environment structure, GCS remote state + locking
+- `terraform state mv / rm / import` for refactoring
+- Workload Identity Federation: GitHub Actions → GCP OIDC, no SA key
+- Ansible: inventory, playbook, idempotency (`file` / `copy` vs `command` module)
+- SD: CAP Theorem, Scalability, Overload Protection, Scaling Reads, Scaling Writes
 
 ### Phase 6 — CI/CD + GitOps *(in progress)*
-**Completed:**
-- GitHub Actions pipeline: `test → build → deploy` with job-level `needs` gates
-- Keyless GCP auth via WIF — `id-token: write` permission scoped to deploy job only
-- Docker image pushed to Artifact Registry on every merge to main
-- Terraform bootstrap layer separates one-time GCP setup from environment resources
+- GitHub Actions: `test → build → deploy`, job-level `needs` gates
+- WIF keyless auth, `id-token: write` scoped to deploy job only
+- Docker image push to Artifact Registry on every merge to main
+- Terraform bootstrap layer: one-time GCP setup separated from environments
+- ArgoCD on k3s: pull-based GitOps, push-based vs pull-based trade-offs *(in progress)*
+- SD: Reliable Delivery, API Design, Queue, Kafka, Long Running Tasks, Container optimisation
 
-**In progress:**
-- ArgoCD on k3s — pull-based GitOps, monitoring `k8s/` directory for changes
-- Push-based vs Pull-based deployment: CI tool needs K8s credentials (push) vs ArgoCD polls git (pull)
+### Phase 7 — Monitoring + Observability *(planned)*
+- GKE Autopilot cluster; deploy go-api with Artifact Registry image
+- Prometheus + Grafana: QPS, error rate, P50/P95/P99 latency dashboard
+- go-api `/metrics` endpoint: Counter, Gauge, Histogram
+- Alert design: symptom-based alerting (error rate > 1%, P95 latency > 500ms)
+- SD: Observability (four golden signals), Caching, Redis, Distributed Cache, Database Transactions, Replication, CDN, Data Pipeline, Dealing with Contention
+
+### Phase 8 — Advanced SD + Interview Prep *(planned)*
+- Rate limiting middleware on go-api (token bucket)
+- Interview prep: K8s failure scenarios, Terraform state, CI/CD trade-offs, GCP architecture
+- SD: Consistent Hashing, Sharding, Database Indexing, PostgreSQL, DynamoDB, OLTP vs OLAP, Distributed Lock, Zookeeper, GraphQL, gRPC, Real-time Updates, Large Blobs, Search System
+
+### Phase 9 — Best Practices Case Studies *(planned)*
+End-to-end system design practice: requirements → capacity estimation → API design → architecture → trade-offs.
+- YouTube, Messenger, Spotify Trending, Airbnb Booking, Earthquake Notification System
+- Webhook Platform, Google Docs, LLM Inference API, Q&A Support Agent
 
 ---
 

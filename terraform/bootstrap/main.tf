@@ -18,6 +18,10 @@ resource "google_project_service" "artifact_registry" {
   service = "artifactregistry.googleapis.com"
 }
 
+resource "google_project_service" "iam_credentials" {
+  service = "iamcredentials.googleapis.com"
+}
+
 resource "google_artifact_registry_repository" "go_api" {
   repository_id = "go-api"
   format        = "DOCKER"

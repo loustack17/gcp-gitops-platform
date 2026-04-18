@@ -13,18 +13,22 @@ Blogs: [LouStackBase](https://loustack.dev/?lang=english)
 ## Key Design Decisions
 
 **WIF over Service Account key**
+
 SA keys are the leading CI/CD credential leak vector. WIF issues short-lived OIDC tokens scoped to a specific GitHub repo — no rotation, no disk storage, expires in minutes.
 → [`main.tf:55`](terraform/bootstrap/main.tf#L55) `attribute_condition` + [`main.tf:67`](terraform/bootstrap/main.tf#L67) `principalSet` member
 
 **Terraform bootstrap layer**
+
 WIF pool, Artifact Registry, and IAM bindings are one-time shared resources. Separating them from environment resources (VPC, GKE) limits blast radius on either side.
 → [`terraform/bootstrap/`](terraform/bootstrap/)
 
 **Least privilege CI Service Account**
+
 `roles/artifactregistry.writer` only. A compromised pipeline can push images; it cannot touch any other GCP resource.
 → [`terraform/bootstrap/main.tf#L72`](terraform/bootstrap/main.tf#L72)
 
 **ArgoCD pull-based GitOps over `kubectl apply` in CI** *(planned — Phase 6)*
+
 Push-based CD requires CI to hold cluster credentials. The plan: ArgoCD syncs from inside the cluster — CI never touches K8s, drift is auto-detected, git is the source of truth.
 
 ## Progress

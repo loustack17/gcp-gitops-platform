@@ -108,7 +108,7 @@ Oral review of Phase 1–2 — explain without notes.
 │   └── hpa.yaml
 ├── terraform/
 │   ├── bootstrap/       # one-time GCP setup: WIF, Artifact Registry, SA, IAM
-│   ├── environments/    # environment-specific resources
+│   ├── environments/dev/
 │   └── modules/         # reusable modules (vpc)
 ├── .github/workflows/
 │   └── ci.yml           # test → build → push image to AR

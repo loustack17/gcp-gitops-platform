@@ -1,6 +1,6 @@
 # go-api — DevOps / SRE Portfolio
 
-The Go API is the workload. The subject is everything around it: secure CI/CD, GitOps, and observability on GCP.
+The Go API is the workload. The subject is everything around it: secure CI/CD on GCP, with GitOps and observability in progress.
 
 Blogs: [LouStackBase](https://loustack.dev/?lang=english)
 
@@ -14,15 +14,19 @@ Blogs: [LouStackBase](https://loustack.dev/?lang=english)
 
 **WIF over Service Account key**
 SA keys are the leading CI/CD credential leak vector. WIF issues short-lived OIDC tokens scoped to a specific GitHub repo — no rotation, no disk storage, expires in minutes.
+→ [`ci.yml`](.github/workflows/ci.yml): `id-token: write` + `google-github-actions/auth`
 
 **Terraform bootstrap layer**
 WIF pool, Artifact Registry, and IAM bindings are one-time shared resources. Separating them from environment resources (VPC, GKE) limits blast radius on either side.
+→ [`terraform/bootstrap/`](terraform/bootstrap/)
 
 **Least privilege CI Service Account**
 `roles/artifactregistry.writer` only. A compromised pipeline can push images; it cannot touch any other GCP resource.
+→ [`terraform/bootstrap/main.tf:72`](terraform/bootstrap/main.tf)
 
 **ArgoCD pull-based GitOps over `kubectl apply` in CI**
 Push-based CD requires CI to hold cluster credentials. ArgoCD syncs from inside the cluster — CI never touches K8s, drift is auto-detected, git is the source of truth.
+→ In progress — Phase 6
 
 ## Progress
 
@@ -81,7 +85,7 @@ Oral review of Phase 1–2 — explain without notes.
 > System Design: CAP Theorem, Scalability, Overload Protection, Scaling Reads, Scaling Writes
 
 ### Phase 6 — CI/CD + GitOps *(in progress)*
-- GitHub Actions: `test → build → deploy`, job-level `needs` gates
+- GitHub Actions: `test → build → push`, job-level `needs` gates
 - WIF keyless auth, `id-token: write` scoped to deploy job only
 - Docker image push to Artifact Registry on every merge to main
 - Terraform bootstrap layer: one-time GCP setup separated from environments
@@ -89,32 +93,14 @@ Oral review of Phase 1–2 — explain without notes.
 
 > System Design: Reliable Delivery, API Design, Queue, Kafka, Long Running Tasks, Container optimisation
 
-### Phase 7 — Monitoring + Observability *(planned)*
-- GKE Autopilot cluster; deploy go-api with Artifact Registry image
-- Prometheus + Grafana: QPS, error rate, P50/P95/P99 latency dashboard
-- go-api `/metrics`: Counter, Gauge, Histogram
-- Symptom-based alerting: error rate > 1%, P95 latency > 500ms
-
-> System Design: Observability (four golden signals), Caching, Redis, Distributed Cache, Database Transactions, Replication, CDN, Data Pipeline, Dealing with Contention
-
-### Phase 8 — Advanced SD + Interview Prep *(planned)*
-- Rate limiting middleware on go-api (token bucket)
-- Incident scenario practice: think-aloud troubleshooting
-
-> System Design: Consistent Hashing, Sharding, Database Indexing, PostgreSQL, DynamoDB, OLTP vs OLAP, Distributed Lock, Zookeeper, GraphQL, gRPC, Real-time Updates, Large Blobs, Search System
-
-### Phase 9 — Best Practices Case Studies *(planned)*
-End-to-end system design: requirements → capacity estimation → API design → architecture → trade-offs.
-- YouTube, Messenger, Spotify Trending, Airbnb Booking, Earthquake Notification System
-- Webhook Platform, Google Docs, LLM Inference API, Q&A Support Agent
 
 ## Repository Structure
 
 ```
 .
 ├── cmd/server/          # entrypoint
-├── internal/            # business logic
-├── server/              # HTTP handlers
+├── internal/
+│   └── handler/         # HTTP handlers (health, crash, oom)
 ├── k8s/
 │   ├── deployment.yaml  # rolling update, resource limits
 │   ├── service.yaml
@@ -126,7 +112,7 @@ End-to-end system design: requirements → capacity estimation → API design �
 │   ├── environments/    # environment-specific resources
 │   └── modules/         # reusable modules (vpc)
 ├── .github/workflows/
-│   └── ci.yml           # test → build → deploy
+│   └── ci.yml           # test → build → push image to AR
 ├── Dockerfile           # multi-stage, scratch base
 └── Dockerfile.distroless
 ```

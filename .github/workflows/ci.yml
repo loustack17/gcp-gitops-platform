@@ -3,8 +3,28 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - '**.go'
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
+    paths:
+      - '**.go'
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, prod]
 
 jobs:
   test:
@@ -14,6 +34,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
       - run: go test ./...
 
   build:
@@ -24,10 +45,15 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
       - run: go build ./...
 
   deploy:
     needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -35,6 +61,8 @@ jobs:
     env:
       GCP_REGION: us-east1
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      ENV_TAG: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod')
+        || 'dev' }}
     steps:
       - uses: actions/checkout@v6
       - uses: google-github-actions/auth@v3
@@ -45,5 +73,5 @@ jobs:
       - name: Docker push to AR
         run: |
           gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet 
-          docker build -t ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${{ github.sha }} . 
-          docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${{ github.sha }}
+          docker build -t ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${ENV_TAG}-${{ github.sha }} . 
+          docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${ENV_TAG}-${{ github.sha }}

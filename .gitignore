@@ -69,3 +69,5 @@ override.tf.json
 terraform.rc
 # Claude Code
 CLAUDE.md
+# Added by code-review-graph
+.code-review-graph/

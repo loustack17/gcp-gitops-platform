@@ -56,7 +56,7 @@ jobs:
       cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
+      contents: 'write'
       id-token: 'write'
     env:
       GCP_REGION: us-east1
@@ -75,3 +75,12 @@ jobs:
           gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet 
           docker build -t ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${ENV_TAG}-${{ github.sha }} . 
           docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${ENV_TAG}-${{ github.sha }}
+      - name: Update image tag
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          sed -i "s|image: us-east1-docker.pkg.dev/.*/go-api/go-api:.*|image: us-east1-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${ENV_TAG}-${SHORT_SHA}|" k8s/base/deployment.yaml
+          git config user.email "github-actions@github.com"
+          git config user.name "Github Actions"
+          git add k8s/base/deployment.yaml
+          git commit -m "chore: update image tag to ${ENV_TAG}-${SHORT_SHA}"
+          git push

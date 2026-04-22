@@ -22,7 +22,7 @@ spec:
       containers:
         - name: go-api
           # image: 127.0.0.1:5050/go-api:0.0.4
-          image: us-east1-docker.pkg.dev/devops-lab-lou-2026/go-api/go-api:prod-fa0ff6f
+          image: us-east1-docker.pkg.dev/devops-lab-lou-2026/go-api/go-api:prod-34fe502
           ports:
             - containerPort: 8080
           resources:

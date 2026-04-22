@@ -1,6 +1,6 @@
 # go-api — DevOps / SRE Portfolio
 
-The Go API is the workload. The subject is everything around it: secure CI/CD on GCP, with GitOps and observability in progress.
+The Go API is the workload. The subject is everything around it: secure CI/CD on GCP, GitOps with ArgoCD, and observability in progress.
 
 Blogs: [LouStackBase](https://loustack.dev/?lang=english)
 
@@ -8,7 +8,7 @@ Blogs: [LouStackBase](https://loustack.dev/?lang=english)
 
 ![Architecture Diagram](docs/architecture.png)
 
-> Solid lines = implemented. Dashed borders = planned (Phase 6–7).
+> Solid lines = implemented. Dashed borders = planned (Phase 7).
 
 ## Key Design Decisions
 
@@ -27,9 +27,14 @@ WIF pool, Artifact Registry, and IAM bindings are one-time shared resources. Sep
 `roles/artifactregistry.writer` only. A compromised pipeline can push images; it cannot touch any other GCP resource.
 → [`terraform/bootstrap/main.tf#L72`](terraform/bootstrap/main.tf#L72)
 
-**ArgoCD pull-based GitOps over `kubectl apply` in CI** *(planned — Phase 6)*
+**ArgoCD pull-based GitOps over `kubectl apply` in CI**
 
-Push-based CD requires CI to hold cluster credentials. The plan: ArgoCD syncs from inside the cluster — CI never touches K8s, drift is auto-detected, git is the source of truth.
+Push-based CD requires CI to hold cluster credentials. ArgoCD syncs from inside the cluster — CI never touches K8s, drift is auto-detected, git is the source of truth.
+→ [`k8s/argocd/application.yaml`](k8s/argocd/application.yaml)
+
+**Image tag: `{env}-{sha}` format**
+
+Every image is traceable to a commit and environment (`prod-7639a24`). CI writes the new tag into `k8s/base/deployment.yaml` and pushes a gitops branch — ArgoCD picks up the diff and syncs.
 
 ## Progress
 
@@ -40,8 +45,8 @@ Push-based CD requires CI to hold cluster credentials. The plan: ArgoCD syncs fr
 | 3 | K8s Review Checkpoint | — | ✅ Done |
 | 4 | Networking + GCP Fundamentals | Scalability | ✅ Done |
 | 5 | IaC + Least Privilege (Terraform + Ansible) | CAP Theorem | ✅ Done |
-| 6 | CI/CD + GitOps (GitHub Actions + ArgoCD) | Reliable Delivery | 🔄 In Progress |
-| 7 | Monitoring + Observability (GKE + Prometheus + Grafana) | Observability | ⏳ Planned |
+| 6 | CI/CD + GitOps (GitHub Actions + ArgoCD) | Reliable Delivery | ✅ Done |
+| 7 | Monitoring + Observability (Prometheus + Grafana) | Observability | ⏳ Planned |
 | 8 | Advanced SD + Interview Prep | Overload Protection | ⏳ Planned |
 | 9 | Best Practices Case Studies | — | ⏳ Planned |
 
@@ -87,15 +92,15 @@ Oral review of Phase 1–2 — explain without notes.
 
 > System Design: CAP Theorem, Scalability, Overload Protection, Scaling Reads, Scaling Writes
 
-### Phase 6 — CI/CD + GitOps *(in progress)*
-- GitHub Actions: `test → build → push`, job-level `needs` gates
-- WIF keyless auth, `id-token: write` scoped to deploy job only
-- Docker image push to Artifact Registry on every merge to main
-- Terraform bootstrap layer: one-time GCP setup separated from environments
-- ArgoCD on k3s: pull-based GitOps *(in progress)*
+### Phase 6 — CI/CD + GitOps
+- GitHub Actions: `test → build → deploy` with job gates (`needs`), path filters, concurrency control
+- WIF keyless auth scoped to deploy job; `id-token: write` + `contents: write`
+- Image tagged `{env}-{sha}` (7-char); tag written to `deployment.yaml` by CI, not hardcoded
+- ArgoCD on k3s: pull-based GitOps, auto sync + prune + selfHeal
+- Application manifest in git (`k8s/argocd/application.yaml`); UI for observation only
+- k8s manifests split into `k8s/base/` (ArgoCD-managed) and `k8s/test/` (excluded)
 
-> System Design: Reliable Delivery, API Design, Queue, Kafka, Long Running Tasks, Container optimisation
-
+> System Design: Reliable Delivery, API Design, Queue, Kafka, Long Running Tasks
 
 ## Repository Structure
 
@@ -105,17 +110,15 @@ Oral review of Phase 1–2 — explain without notes.
 ├── internal/
 │   └── handler/         # HTTP handlers (health, crash, oom)
 ├── k8s/
-│   ├── deployment.yaml  # rolling update, resource limits
-│   ├── service.yaml
-│   ├── configmap.yaml
-│   ├── secret.yaml
-│   └── hpa.yaml
+│   ├── base/            # ArgoCD-managed: deployment, service, configmap, hpa, secret
+│   ├── argocd/          # ArgoCD Application manifest
+│   └── test/            # practice YAMLs, excluded from ArgoCD
 ├── terraform/
 │   ├── bootstrap/       # one-time GCP setup: WIF, Artifact Registry, SA, IAM
 │   ├── environments/dev/
 │   └── modules/         # reusable modules (vpc)
 ├── .github/workflows/
-│   └── ci.yml           # test → build → push image to AR
+│   └── ci.yml           # test → build → push image → update deployment.yaml → gitops branch
 ├── Dockerfile           # multi-stage, scratch base
 └── Dockerfile.distroless
 ```
@@ -128,8 +131,9 @@ Oral review of Phase 1–2 — explain without notes.
 | Container | Docker (multi-stage, scratch base) |
 | Registry | GCP Artifact Registry |
 | IaC | Terraform / OpenTofu |
-| CI/CD | GitHub Actions |
+| CI | GitHub Actions (WIF, path filters, concurrency) |
+| CD | ArgoCD (pull-based GitOps, auto sync) |
 | Auth | Workload Identity Federation (OIDC, keyless) |
 | Orchestration | Kubernetes (k3s local, GKE planned) |
 | Cloud | GCP |
-| Planned | ArgoCD, Prometheus, Grafana |
+| Planned | Prometheus, Grafana |

@@ -79,8 +79,9 @@ jobs:
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
           sed -i "s|image: us-east1-docker.pkg.dev/.*/go-api/go-api:.*|image: us-east1-docker.pkg.dev/${GCP_PROJECT_ID}/go-api/go-api:${ENV_TAG}-${SHORT_SHA}|" k8s/base/deployment.yaml
-          git config user.email "github-actions@github.com"
-          git config user.name "Github Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Github Actions[bot]"
+          git checkout -b gitops/update-image-${SHORT_SHA}
           git add k8s/base/deployment.yaml
           git commit -m "chore: update image tag to ${ENV_TAG}-${SHORT_SHA}"
-          git push
+          git push origin gitops/update-image-${SHORT_SHA}

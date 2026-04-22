@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: go-api
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: go-api
@@ -19,7 +19,8 @@ spec:
     spec:
       containers:
         - name: go-api
-          image: 127.0.0.1:5050/go-api:0.0.4
+          # image: 127.0.0.1:5050/go-api:0.0.4
+          image: us-east1-docker.pkg.dev/devops-lab-lou-2026/go-api/go-api:prod-7639a2426572cd239c8aba2d11e6c627db2f3a43
           ports:
             - containerPort: 8080
           resources:

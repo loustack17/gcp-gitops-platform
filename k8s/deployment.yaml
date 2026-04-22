@@ -17,6 +17,8 @@ spec:
       labels:
         app: go-api
     spec:
+      imagePullSecrets:
+        - name: ar-secret
       containers:
         - name: go-api
           # image: 127.0.0.1:5050/go-api:0.0.4

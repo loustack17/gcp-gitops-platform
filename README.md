@@ -1,139 +1,89 @@
-# go-api — DevOps / SRE Portfolio
+# go-api — DevOps / SRE / Agent Platform Portfolio
 
-The Go API is the workload. The subject is everything around it: secure CI/CD on GCP, GitOps with ArgoCD, and observability in progress.
+Go API is workload. Portfolio signal is infra around it: GCP, CI/CD, GitOps, Kubernetes, observability, future agent-platform track.
 
-Blogs: [LouStackBase](https://loustack.dev/?lang=english)
+Blog: [LouStackBase](https://loustack.dev/?lang=english)
 
-## Architecture
+## What this repo proves
 
-![Architecture Diagram](docs/architecture.png)
+Implemented now:
+- Go service containerized with multi-stage Docker build
+- GCP Artifact Registry + Workload Identity Federation
+- GitHub Actions CI/CD
+- ArgoCD pull-based GitOps on k3s
+- Terraform bootstrap split for shared GCP resources
 
-> Solid lines = implemented. Dashed borders = planned (Phase 7).
+Planned next:
+- Prometheus + Grafana observability
+- Agent runtime, memory, guardrails, hooks
+- RAG over ops runbooks
+- model serving / provider gateway
 
-## Key Design Decisions
+## Key signals
 
-**WIF over Service Account key**
+- WIF over Service Account key
+  - short-lived OIDC, no static key in CI
+  - refs: `terraform/bootstrap/main.tf`
 
-SA keys are the leading CI/CD credential leak vector. WIF issues short-lived OIDC tokens scoped to a specific GitHub repo — no rotation, no disk storage, expires in minutes.
-→ [`main.tf:55`](terraform/bootstrap/main.tf#L55) `attribute_condition` + [`main.tf:67`](terraform/bootstrap/main.tf#L67) `principalSet` member
+- ArgoCD pull-based GitOps over `kubectl apply` in CI
+  - CI does not hold cluster creds
+  - git is source of truth
+  - refs: `k8s/argocd/application.yaml`
 
-**Terraform bootstrap layer**
+- Least-privilege CI service account
+  - image push only, not broad GCP access
+  - refs: `terraform/bootstrap/main.tf`
 
-WIF pool, Artifact Registry, and IAM bindings are one-time shared resources. Separating them from environment resources (VPC, GKE) limits blast radius on either side.
-→ [`terraform/bootstrap/`](terraform/bootstrap/)
+- Terraform bootstrap separation
+  - shared foundation split from env resources
+  - refs: `terraform/bootstrap/`
 
-**Least privilege CI Service Account**
-
-`roles/artifactregistry.writer` only. A compromised pipeline can push images; it cannot touch any other GCP resource.
-→ [`terraform/bootstrap/main.tf#L72`](terraform/bootstrap/main.tf#L72)
-
-**ArgoCD pull-based GitOps over `kubectl apply` in CI**
-
-Push-based CD requires CI to hold cluster credentials. ArgoCD syncs from inside the cluster — CI never touches K8s, drift is auto-detected, git is the source of truth.
-→ [`k8s/argocd/application.yaml`](k8s/argocd/application.yaml)
-
-**Image tag: `{env}-{sha}` format**
-
-Every image is traceable to a commit and environment (`prod-7639a24`). CI writes the new tag into `k8s/base/deployment.yaml` and pushes a gitops branch — ArgoCD picks up the diff and syncs.
+- Image tags use `{env}-{sha}`
+  - deploy traceability by env + commit
 
 ## Progress
 
-| Phase | Topic | Core SD Concept | Status |
+| Phase | Topic | SD Concept | Status |
 |---|---|---|---|
-| 1 | Docker + Kubernetes Core | — | ✅ Done |
-| 2 | K8s Failure Modeling | — | ✅ Done |
-| 3 | K8s Review Checkpoint | — | ✅ Done |
-| 4 | Networking + GCP Fundamentals | Scalability | ✅ Done |
-| 5 | IaC + Least Privilege (Terraform + Ansible) | CAP Theorem | ✅ Done |
-| 6 | CI/CD + GitOps (GitHub Actions + ArgoCD) | Reliable Delivery | ✅ Done |
-| 7 | Monitoring + Observability (Prometheus + Grafana) | Observability | ⏳ Planned |
-| 8 | Advanced SD + Interview Prep | Overload Protection | ⏳ Planned |
-| 9 | Best Practices Case Studies | — | ⏳ Planned |
+| 1 | Docker + Kubernetes Core | — | Done |
+| 2 | K8s Failure Modeling | — | Done |
+| 3 | K8s Review Checkpoint | — | Done |
+| 4 | Networking + GCP Fundamentals | Scalability | Done |
+| 5 | IaC + Least Privilege | CAP Theorem | Done |
+| 6 | CI/CD + GitOps | Reliable Delivery | Done |
+| 7 | Monitoring + Observability | Observability | Planned |
+| 8 | Advanced SD + Interview Prep | Overload Protection | Planned |
+| 9 | Best Practices Case Studies | — | Planned |
+| 10 | Agent Core Loop | Tool Use Loop | Planned |
+| 11 | Memory + Guardrails | State + Safety | Planned |
+| 12 | Workflow Orchestration + Hooks | Stateful Orchestration | Planned |
+| 13 | RAG + Ops Knowledge | Retrieval Systems | Planned |
+| 14 | Model Serving + Provider Gateway | Serving Boundary | Planned |
+| 15 | DevOps Agent Platform — Portfolio Project | Full System Integration | Planned |
 
-## Phase Highlights
+## Repo structure
 
-### Phase 1 — Docker + Kubernetes Core
-- Linux namespace + cgroup; multi-stage Docker build to `scratch` and `distroless`
-- Image layer cache optimisation; container restart vs rebuild
-- K8s architecture: Control Plane vs Worker Node, reconciliation loop
-- Deployment → ReplicaSet → Pod, rolling update (`maxSurge` / `maxUnavailable`)
-- Service DNS-based discovery, HPA with metrics-server
-- `kubectl` debug flow: `get pods → describe → logs → events`
-
-### Phase 2 — K8s Failure Modeling
-- OOMKilled (exit code 137), CrashLoopBackOff exponential backoff, ImagePullBackOff
-- Readiness probe vs Liveness probe failure — different recovery behaviour
-- ResourceQuota enforcement at the API server layer
-- ConfigMap vs Secret: `envFrom` (whole map) vs `valueFrom` (single key)
-- Cross-namespace DNS: `service.namespace.svc.cluster.local`
-
-### Phase 3 — K8s Review Checkpoint
-Oral review of Phase 1–2 — explain without notes.
-- Container vs VM: namespace + cgroup vs hypervisor
-- Pod / Deployment / ReplicaSet; Service label selector mechanism
-- OOMKilled, CrashLoopBackOff, Pod Pending — root causes and debug approach
-- requests vs limits: Scheduler uses requests, runtime enforces limits
-- Readiness vs Liveness probe failure — different consequences
-- ConfigMap vs Secret; cross-namespace DNS
-
-### Phase 4 — Networking + GCP Fundamentals
-- DNS resolution, TLS handshake, HTTP statelessness
-- L4 vs L7 load balancer trade-offs; reverse proxy pattern
-- GCP VPC (global) vs Azure VNet (regional); Service Account vs Managed Identity
-- GCP hands-on: VPC, Subnet, Firewall Rules, Service Account
-
-> System Design: Networking Essentials, Client-Server Architecture, Load Balancer, API Gateway
-
-### Phase 5 — IaC + Least Privilege
-- Terraform modules, multi-environment structure, GCS remote state + state locking
-- `terraform state mv / rm / import` for safe refactoring
-- Workload Identity Federation: GitHub Actions → GCP OIDC, no SA key
-- Ansible: inventory, playbook, idempotency (`file` / `copy` vs `command` module)
-
-> System Design: CAP Theorem, Scalability, Overload Protection, Scaling Reads, Scaling Writes
-
-### Phase 6 — CI/CD + GitOps
-- GitHub Actions: `test → build → deploy` with job gates (`needs`), path filters, concurrency control
-- WIF keyless auth scoped to deploy job; `id-token: write` + `contents: write`
-- Image tagged `{env}-{sha}` (7-char); tag written to `deployment.yaml` by CI, not hardcoded
-- ArgoCD on k3s: pull-based GitOps, auto sync + prune + selfHeal
-- Application manifest in git (`k8s/argocd/application.yaml`); UI for observation only
-- k8s manifests split into `k8s/base/` (ArgoCD-managed) and `k8s/test/` (excluded)
-
-> System Design: Reliable Delivery, API Design, Queue, Kafka, Long Running Tasks
-
-## Repository Structure
-
-```
+```text
 .
-├── cmd/server/          # entrypoint
-├── internal/
-│   └── handler/         # HTTP handlers (health, crash, oom)
+├── cmd/server/
+├── internal/handler/
 ├── k8s/
-│   ├── base/            # ArgoCD-managed: deployment, service, configmap, hpa, secret
-│   ├── argocd/          # ArgoCD Application manifest
-│   └── test/            # practice YAMLs, excluded from ArgoCD
+│   ├── base/
+│   ├── argocd/
+│   └── test/
 ├── terraform/
-│   ├── bootstrap/       # one-time GCP setup: WIF, Artifact Registry, SA, IAM
+│   ├── bootstrap/
 │   ├── environments/dev/
-│   └── modules/         # reusable modules (vpc)
-├── .github/workflows/
-│   └── ci.yml           # test → build → push image → update deployment.yaml → gitops branch
-├── Dockerfile           # multi-stage, scratch base
+│   └── modules/
+├── .github/workflows/ci.yml
+├── Dockerfile
 └── Dockerfile.distroless
 ```
 
-## Tech Stack
+## Target direction
 
-| Layer | Tech |
-|---|---|
-| Language | Go |
-| Container | Docker (multi-stage, scratch base) |
-| Registry | GCP Artifact Registry |
-| IaC | Terraform / OpenTofu |
-| CI | GitHub Actions (WIF, path filters, concurrency) |
-| CD | ArgoCD (pull-based GitOps, auto sync) |
-| Auth | Workload Identity Federation (OIDC, keyless) |
-| Orchestration | Kubernetes (k3s local, GKE planned) |
-| Cloud | GCP |
-| Planned | Prometheus, Grafana |
+Main track:
+- Harness / Agent Platform Engineer
+
+Support track:
+- Applied AI infra: RAG, model serving, provider abstraction
